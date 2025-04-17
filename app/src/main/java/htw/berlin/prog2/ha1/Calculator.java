@@ -116,7 +116,7 @@ public class Calculator {
      * Wird die Taste weitere Male gedrückt (ohne andere Tasten dazwischen), so wird die letzte
      * Operation (ggf. inklusive letztem Operand) erneut auf den aktuellen Bildschirminhalt angewandt
      * und das Ergebnis direkt angezeigt.
-     */
+     *//
     public void pressEqualsKey() {
         var result = switch(latestOperation) {
             case "+" -> latestValue + Double.parseDouble(screen);
