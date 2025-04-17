@@ -11,8 +11,11 @@ public class Calculator {
     private String screen = "0";
 
     private double latestValue;
-
     private String latestOperation = "";
+
+    private double lastSecondOperand = 0.0;
+    private boolean justCalculated = false;
+    private boolean screenWasClearedOnce = false;
 
     /**
      * @return den aktuellen Bildschirminhalt als String
@@ -22,8 +25,7 @@ public class Calculator {
     }
 
     /**
-     * Empfängt den Wert einer gedrückten Zifferntaste. Da man nur eine Taste auf einmal
-     * drücken kann muss der Wert positiv und einstellig sein und zwischen 0 und 9 liegen.
+     * Empfängt den Wert einer gedrückten Zifferntaste.
      * Führt in jedem Fall dazu, dass die gerade gedrückte Ziffer auf dem Bildschirm angezeigt
      * oder rechts an die zuvor gedrückte Ziffer angehängt angezeigt wird.
      * @param digit Die Ziffer, deren Taste gedrückt wurde
@@ -34,6 +36,7 @@ public class Calculator {
         if(screen.equals("0") || latestValue == Double.parseDouble(screen)) screen = "";
 
         screen = screen + digit;
+        justCalculated = false;
     }
 
     /**
@@ -43,32 +46,33 @@ public class Calculator {
      * Wird daraufhin noch einmal die Taste gedrückt, dann werden auch zwischengespeicherte
      * Werte sowie der aktuelle Operationsmodus zurückgesetzt, so dass der Rechner wieder
      * im Ursprungszustand ist.
+     * Der Rechner merkt sich, ob der Bildschirm bereits gelöscht wurde, um beim zweiten Drücken
+     * auch die zwischengespeicherten Werte und Operationen zurückzusetzen.
      */
     public void pressClearKey() {
-        screen = "0";
-        latestOperation = "";
-        latestValue = 0.0;
+        if (!screenWasClearedOnce) {
+            screen = "0";
+            screenWasClearedOnce = true;
+        } else {
+            screen = "0";
+            latestOperation = "";
+            latestValue = 0.0;
+            screenWasClearedOnce = false;
+        }
     }
 
     /**
-     * Empfängt den Wert einer gedrückten binären Operationstaste, also eine der vier Operationen
-     * Addition, Substraktion, Division, oder Multiplikation, welche zwei Operanden benötigen.
-     * Beim ersten Drücken der Taste wird der Bildschirminhalt nicht verändert, sondern nur der
-     * Rechner in den passenden Operationsmodus versetzt.
-     * Beim zweiten Drücken nach Eingabe einer weiteren Zahl wird direkt des aktuelle Zwischenergebnis
-     * auf dem Bildschirm angezeigt. Falls hierbei eine Division durch Null auftritt, wird "Error" angezeigt.
+     * Empfängt den Wert einer gedrückten binären Operationstaste.
      * @param operation "+" für Addition, "-" für Substraktion, "x" für Multiplikation, "/" für Division
      */
-    public void pressBinaryOperationKey(String operation)  {
+    public void pressBinaryOperationKey(String operation) {
         latestValue = Double.parseDouble(screen);
         latestOperation = operation;
+        justCalculated = false;
     }
 
     /**
-     * Empfängt den Wert einer gedrückten unären Operationstaste, also eine der drei Operationen
-     * Quadratwurzel, Prozent, Inversion, welche nur einen Operanden benötigen.
-     * Beim Drücken der Taste wird direkt die Operation auf den aktuellen Zahlenwert angewendet und
-     * der Bildschirminhalt mit dem Ergebnis aktualisiert.
+     * Empfängt den Wert einer gedrückten unären Operationstaste.
      * @param operation "√" für Quadratwurzel, "%" für Prozent, "1/x" für Inversion
      */
     public void pressUnaryOperationKey(String operation) {
@@ -83,15 +87,11 @@ public class Calculator {
         screen = Double.toString(result);
         if(screen.equals("NaN")) screen = "Error";
         if(screen.contains(".") && screen.length() > 11) screen = screen.substring(0, 10);
-
+        justCalculated = true;
     }
 
     /**
-     * Empfängt den Befehl der gedrückten Dezimaltrennzeichentaste, im Englischen üblicherweise "."
-     * Fügt beim ersten Mal Drücken dem aktuellen Bildschirminhalt das Trennzeichen auf der rechten
-     * Seite hinzu und aktualisiert den Bildschirm. Daraufhin eingegebene Zahlen werden rechts vom
-     * Trennzeichen angegeben und daher als Dezimalziffern interpretiert.
-     * Beim zweimaligem Drücken, oder wenn bereits ein Trennzeichen angezeigt wird, passiert nichts.
+     * Empfängt den Befehl der gedrückten Dezimaltrennzeichentaste, z. B. ".".
      */
     public void pressDotKey() {
         if(!screen.contains(".")) screen = screen + ".";
@@ -99,10 +99,6 @@ public class Calculator {
 
     /**
      * Empfängt den Befehl der gedrückten Vorzeichenumkehrstaste ("+/-").
-     * Zeigt der Bildschirm einen positiven Wert an, so wird ein "-" links angehängt, der Bildschirm
-     * aktualisiert und die Inhalt fortan als negativ interpretiert.
-     * Zeigt der Bildschirm bereits einen negativen Wert mit führendem Minus an, dann wird dieses
-     * entfernt und der Inhalt fortan als positiv interpretiert.
      */
     public void pressNegativeKey() {
         screen = screen.startsWith("-") ? screen.substring(1) : "-" + screen;
@@ -110,24 +106,31 @@ public class Calculator {
 
     /**
      * Empfängt den Befehl der gedrückten "="-Taste.
-     * Wurde zuvor keine Operationstaste gedrückt, passiert nichts.
-     * Wurde zuvor eine binäre Operationstaste gedrückt und zwei Operanden eingegeben, wird das
-     * Ergebnis der Operation angezeigt. Falls hierbei eine Division durch Null auftritt, wird "Error" angezeigt.
      * Wird die Taste weitere Male gedrückt (ohne andere Tasten dazwischen), so wird die letzte
      * Operation (ggf. inklusive letztem Operand) erneut auf den aktuellen Bildschirminhalt angewandt
      * und das Ergebnis direkt angezeigt.
-     *//
+     */
     public void pressEqualsKey() {
+        double current = Double.parseDouble(screen);
+
+        if (!justCalculated) {
+            lastSecondOperand = current;
+        }
+
         var result = switch(latestOperation) {
-            case "+" -> latestValue + Double.parseDouble(screen);
-            case "-" -> latestValue - Double.parseDouble(screen);
-            case "x" -> latestValue * Double.parseDouble(screen);
-            case "/" -> latestValue / Double.parseDouble(screen);
+            case "+" -> latestValue + lastSecondOperand;
+            case "-" -> latestValue - lastSecondOperand;
+            case "x" -> latestValue * lastSecondOperand;
+            case "/" -> lastSecondOperand == 0 ? Double.POSITIVE_INFINITY : latestValue / lastSecondOperand;
             default -> throw new IllegalArgumentException();
         };
+
         screen = Double.toString(result);
         if(screen.equals("Infinity")) screen = "Error";
         if(screen.endsWith(".0")) screen = screen.substring(0,screen.length()-2);
         if(screen.contains(".") && screen.length() > 11) screen = screen.substring(0, 10);
+
+        latestValue = result;
+        justCalculated = true;
     }
 }
